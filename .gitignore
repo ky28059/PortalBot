@@ -74,3 +74,9 @@ typings/
 
 # FuseBox cache
 .fusebox/
+
+# IDE
+.idea
+
+# auth
+auth.ts
