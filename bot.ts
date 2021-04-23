@@ -91,8 +91,8 @@ client.on('message', async message => {
                 let destMessage = await guildChannel.send(embedMessage(
                     `You hear a loud crackling sound and see sparks fly out in a cone in front of you — ` +
                     `it appears someone is trying to open a portal to your location! The insignia on their runestones ` +
-                    `seems to indicate they hail from ${message.channel.name}` +
-                    `${guildChannel.guild.id !== message.guild?.id ? `, from the faraway lands of ${message.guild?.name}` : ''}.` +
+                    `seems to indicate they hail from **${message.channel.name}` +
+                    `${guildChannel.guild.id !== message.guild?.id ? `, from the faraway lands of ${message.guild?.name}` : ''}.** ` +
                     `Do you accept their intrusion and grant permission for their portal?` // fix
                 ));
 
@@ -104,6 +104,7 @@ client.on('message', async message => {
                 // Await response
                 const result = await destMessage.awaitReactions(reactionFilter, { max: 1, time: 20000 })
 
+                await destMessage.reactions.removeAll();
                 switch (result.first()?.emoji.name) {
                     case '✅': // If they accept the portal
                         await destMessage.edit(embedMessage(
@@ -123,6 +124,15 @@ client.on('message', async message => {
                         return fromMessage.edit(embedMessage(
                             '__'
                         ));
+                    default: // If the exchange timed out
+                        await destMessage.edit(embedMessage(
+                            'It appears the portal opener caught you in a bad time, and no one was around to mediate the connection. ' +
+                            'The portal shimmers and fades away.'
+                        ));
+                        return fromMessage.edit(embedMessage(
+                            'It appears no one was around to mediate your connection. ' +
+                            'Your portal shimmers and fades away.'
+                        ));
                 }
 
                 // If command hasn't returned yet, both parties have reciprocated the portal exchange
@@ -131,8 +141,10 @@ client.on('message', async message => {
                 const fromWebhook = await fetchPortalWebhook(message.channel as TextChannel);
                 const destWebhook = await fetchPortalWebhook(guildChannel);
 
-                const messageFilter = (m: Message) => m.webhookID === null; // Filter out webhook messages to prevent infinite loop
-                const portalOpenLength = 60000; // Time the portal remains open, in ms
+                // Filter out webhook messages to prevent infinite loop
+                const messageFilter = (m: Message) => m.webhookID === null && m.author.id !== client.user?.id;
+                // Time the portal remains open, in ms
+                const portalOpenLength = 60000;
 
                 const fromCollector = message.channel.createMessageCollector(messageFilter, {time: portalOpenLength});
                 const toCollector = guildChannel.createMessageCollector(messageFilter, {time: portalOpenLength});
@@ -151,6 +163,15 @@ client.on('message', async message => {
                         'The portal wanes in power and then dispels. __'
                     ));
                 })
+                break;
+
+            // Help command
+            case 'help':
+                return message.channel.send(embedMessage(
+                    `Use \`${prefix} open [channel]\` to open a portal, ` +
+                    `\`${prefix} info\` while a portal is open to see the destination, ` +
+                    `and \`${prefix} help\` to display this message.`
+                ));
         }
     }
 });
