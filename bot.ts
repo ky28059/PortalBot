@@ -1,4 +1,4 @@
-import {Client, GuildMember, Message, MessageReaction, TextChannel} from 'discord.js';
+import {Client, GuildMember, Message, MessageReaction, TextChannel, Webhook} from 'discord.js';
 import {embedMessage} from './messages';
 import {token} from './auth';
 
@@ -34,7 +34,7 @@ client.on('message', async message => {
         switch (commandName) {
             case 'open':
                 let [target] = args;
-                let id = target.match(/^<#(\d+)>$/)?.[1] ?? target;
+                let id = target?.match(/^<#(\d+)>$/)?.[1] ?? target;
 
                 // Infinite loop check
                 if (id === message.channel.id) return message.reply(embedMessage(
@@ -61,7 +61,6 @@ client.on('message', async message => {
 
                 let guildChannel = channel as TextChannel;
                 let member = guildChannel.guild.member(message.author);
-
 
                 // Channel perms check
                 if (!member) {
@@ -116,7 +115,7 @@ client.on('message', async message => {
                             'if only temporarily.'
                         ));
                         break;
-                    case '❎': // If they deny the portal
+                    case '❎': // If they reject the portal
                         await destMessage.edit(embedMessage(
                             'You lift your hands and dispel the portal, shattering it into a spray of particles. ' +
                             '__' // finish
@@ -129,36 +128,19 @@ client.on('message', async message => {
                 // If command hasn't returned yet, both parties have reciprocated the portal exchange
                 // Commence webhooks
 
-                const fromWebhook =
-                    (await message.channel.fetchWebhooks()).find(value => value.name === 'Portal')
-                    ?? await message.channel.createWebhook('Portal');
-                const destWebhook =
-                    (await guildChannel.fetchWebhooks()).find(value => value.name === 'Portal')
-                    ?? await guildChannel.createWebhook('Portal');
+                const fromWebhook = await fetchPortalWebhook(message.channel as TextChannel);
+                const destWebhook = await fetchPortalWebhook(guildChannel);
 
-                const messageFilter = (m: Message) => !m.author.bot;
-                const fromCollector = message.channel.createMessageCollector(messageFilter, {time: 60000});
-                const toCollector = guildChannel.createMessageCollector(messageFilter, {time: 60000});
+                const messageFilter = (m: Message) => m.webhookID === null; // Filter out webhook messages to prevent infinite loop
+                const portalOpenLength = 60000; // Time the portal remains open, in ms
 
-                fromCollector.on('collect', async (m: Message) => {
-                    await destWebhook.send(
-                        m.content,
-                        {
-                            username: m.author.username,
-                            avatarURL: m.author.avatarURL() ?? undefined,
-                            allowedMentions: {parse: []}
-                        });
-                });
+                const fromCollector = message.channel.createMessageCollector(messageFilter, {time: portalOpenLength});
+                const toCollector = guildChannel.createMessageCollector(messageFilter, {time: portalOpenLength});
 
-                toCollector.on('collect', async (m: Message) => {
-                    await fromWebhook.send(
-                        m.content,
-                        {
-                            username: m.author.username,
-                            avatarURL: m.author.avatarURL() ?? undefined,
-                            allowedMentions: {parse: []}
-                        });
-                });
+                fromCollector.on('collect',
+                    async (m: Message) => handlePortalMessage(m, destWebhook, guildChannel, prefix));
+                toCollector.on('collect',
+                    async (m: Message) => handlePortalMessage(m, fromWebhook, message.channel as TextChannel, prefix));
 
                 // When the portal closes
                 fromCollector.on('end', async () => {
@@ -172,6 +154,27 @@ client.on('message', async message => {
         }
     }
 });
+
+// Function to find or create a PortalBot webhook in a channel
+async function fetchPortalWebhook(channel: TextChannel) {
+    return (await channel.fetchWebhooks()).find(value => value.name === 'Portal')
+        ?? await channel.createWebhook('Portal');
+}
+
+// Function to handle an incoming portal message
+async function handlePortalMessage(m: Message, dest: Webhook, linkedTo: TextChannel, prefix: string) {
+    if (m.content === `${prefix} info`)
+        await m.reply(embedMessage(`Connected to **${linkedTo.name}** in **${linkedTo.guild.name}**`));
+    else await dest.send(
+        m.content,
+        {
+            username: m.author.username,
+            avatarURL: m.author.avatarURL() ?? undefined,
+            files: m.attachments.array(),
+            embeds: m.embeds,
+            allowedMentions: {parse: []}
+        });
+}
 
 // Error handling
 client.on('warn', info => console.log(info));
