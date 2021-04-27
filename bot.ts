@@ -38,7 +38,8 @@ client.on('message', async message => {
 
                 // Infinite loop check
                 if (id === message.channel.id) return message.reply(embedMessage(
-                    '__'
+                    'You are about to open the portal when you realize that your destination is the exact location where ' +
+                    'you are standing right now! *What a silly mistake,* you think to yourself, *I\'ll make sure it never happens again.*'
                 ));
 
                 let channel = client.channels.cache.get(id);
@@ -63,23 +64,35 @@ client.on('message', async message => {
                 let member = guildChannel.guild.member(message.author);
 
                 // Channel perms check
-                if (!member) {
-                    // If the portal opener is not in the destination server, check the target's permissions for @everyone
-                    // as a way to determine whether the channel is "public"
-                    if (!guildChannel.permissionsFor('everyone')?.has('VIEW_CHANNEL')
-                        || !guildChannel.permissionsFor('everyone')?.has('SEND_MESSAGES'))
-                        return message.reply(embedMessage(
-                            'Your portal opens, but instantly fizzes out — it seems that your destination is protected ' +
-                            'by powerful wards and anti-magic spells. Whoever resides there must want to keep its contents a secret.'
-                        ));
-                } else {
-                    // Otherwise, check the opener's permissions to see if they can target that channel
-                    if (!guildChannel.permissionsFor(member)?.has('VIEW_CHANNEL')
-                        || !guildChannel.permissionsFor(member)?.has('SEND_MESSAGES'))
-                        return message.reply(embedMessage(
-                            'Your portal opens, but instantly fizzes out — it seems that your destination is protected ' +
-                            'by powerful wards and anti-magic spells. Whoever resides there must want to keep its contents a secret.'
-                        ));
+                // If the portal opener is in the destination server, check if they can view or send messages in the target channel
+                // Otherwise, check the channels permissions for @everyone to determine whether the channel is "public"
+                if ((member && (!guildChannel.permissionsFor(member)?.has('VIEW_CHANNEL')
+                    || !guildChannel.permissionsFor(member)?.has('SEND_MESSAGES')))
+                    || (!member && (!guildChannel.permissionsFor('everyone')?.has('VIEW_CHANNEL')
+                        || !guildChannel.permissionsFor('everyone')?.has('SEND_MESSAGES')))) {
+                    return message.reply(embedMessage(
+                        'Your portal opens, but instantly fizzes out — it seems that your destination is protected ' +
+                        'by powerful wards and anti-magic spells. Whoever resides there must want to keep its contents a secret.'
+                    ));
+                }
+
+                // Slowmode check
+                // If rate limit is greater than 5 seconds, prevent portals
+                if (guildChannel.rateLimitPerUser > 5) {
+                    return message.reply(embedMessage(
+                        'Your portal opens, but a giant blast of cold mist closes it immediately. ' +
+                        'It seems your destination\'s climate is too [frigid](https://support.discord.com/hc/en-us/articles/360016150952-Slowmode-Slllooowwwiiinng-down-your-channel) ' +
+                        'to support a live connection.'
+                    ));
+                }
+
+                // Client perms check
+                let clientGuildMember = guildChannel.guild.member(client.user!)!;
+                if (!guildChannel.permissionsFor(clientGuildMember)?.has('VIEW_CHANNEL')
+                    || !guildChannel.permissionsFor(clientGuildMember)?.has('SEND_MESSAGES')) {
+                    return message.reply(embedMessage(
+                        '__'
+                    ));
                 }
 
                 // Open portal!
@@ -122,7 +135,8 @@ client.on('message', async message => {
                             '__' // finish
                         ));
                         return fromMessage.edit(embedMessage(
-                            '__'
+                            'Your portal shatters into a spray of particles, dispelled by the denizens beyond it. ' +
+                            'It seems your intrusion was not welcomed __.'
                         ));
                     default: // If the exchange timed out
                         await destMessage.edit(embedMessage(
@@ -136,7 +150,7 @@ client.on('message', async message => {
                 }
 
                 // If command hasn't returned yet, both parties have reciprocated the portal exchange
-                // Commence webhooks
+                // Commence webhooks!
 
                 const fromWebhook = await fetchPortalWebhook(message.channel as TextChannel);
                 const destWebhook = await fetchPortalWebhook(guildChannel);
@@ -162,7 +176,7 @@ client.on('message', async message => {
                     await guildChannel.send(embedMessage(
                         'The portal wanes in power and then dispels. __'
                     ));
-                })
+                });
                 break;
 
             // Help command
