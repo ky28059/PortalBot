@@ -25,7 +25,7 @@ client.on('message', async message => {
     if (message.author.bot) return;
     if (message.channel.type === 'dm') return;
 
-    const prefix = "portal";
+    const prefix = 'portal';
     if (message.content.substring(0, prefix.length) === prefix) {
         const args = message.content.slice(prefix.length).trim().split(/ +/g); // removes the prefix, then the spaces, then splits into array
         const commandName = args.shift()?.toLowerCase();
@@ -35,6 +35,8 @@ client.on('message', async message => {
             case 'open':
                 let [target] = args;
                 let id = target?.match(/^<#(\d+)>$/)?.[1] ?? target;
+
+                console.log(`Mediating portal from ${message.channel.id} to ${id}`);
 
                 // Infinite loop check
                 if (id === message.channel.id) return message.reply(embedMessage(
@@ -76,6 +78,27 @@ client.on('message', async message => {
                     ));
                 }
 
+                // Current channel client perms check
+                // VIEW and SEND can be omitted here as in order to see the message VIEW must be true and SEND is already checked for
+                let currentChannelPerms = message.channel.permissionsFor(message.channel.guild.member(client.user!)!);
+                if (!currentChannelPerms?.has('MANAGE_WEBHOOKS')) {
+                    return message.reply(embedMessage(
+                        'Your portal opens, but instantly fizzes out — it seems the hold of magic in your current location are yet too weak ' +
+                        'for portalling. __'
+                    ));
+                }
+
+                // Target channel client perms check
+                let targetChannelPerms = guildChannel.permissionsFor(guildChannel.guild.member(client.user!)!);
+                if (!targetChannelPerms?.has('VIEW_CHANNEL')
+                    || !targetChannelPerms?.has('SEND_MESSAGES')
+                    || !targetChannelPerms?.has('MANAGE_WEBHOOKS')) {
+                    return message.reply(embedMessage(
+                        'Your portal opens, but instantly fizzes out — it seems the hold of magic in your destination is yet too weak ' +
+                        'for portalling. __'
+                    ));
+                }
+
                 // Slowmode check
                 // If rate limit is greater than 5 seconds, prevent portals
                 if (guildChannel.rateLimitPerUser > 5) {
@@ -83,15 +106,6 @@ client.on('message', async message => {
                         'Your portal opens, but a giant blast of cold mist closes it immediately. ' +
                         'It seems your destination\'s climate is too [frigid](https://support.discord.com/hc/en-us/articles/360016150952-Slowmode-Slllooowwwiiinng-down-your-channel) ' +
                         'to support a live connection.'
-                    ));
-                }
-
-                // Client perms check
-                let clientGuildMember = guildChannel.guild.member(client.user!)!;
-                if (!guildChannel.permissionsFor(clientGuildMember)?.has('VIEW_CHANNEL')
-                    || !guildChannel.permissionsFor(clientGuildMember)?.has('SEND_MESSAGES')) {
-                    return message.reply(embedMessage(
-                        '__'
                     ));
                 }
 
