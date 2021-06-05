@@ -1,6 +1,7 @@
 import {Client, GuildMember, Message, MessageReaction, TextChannel, Webhook} from 'discord.js';
 import {embedMessage} from './messages';
 import {token} from './auth';
+const prefix = 'portal';
 
 
 const client = new Client({
@@ -25,7 +26,6 @@ client.on('message', async message => {
     if (message.author.bot) return;
     if (message.channel.type === 'dm') return;
 
-    const prefix = 'portal';
     if (message.content.substring(0, prefix.length) === prefix) {
         const args = message.content.slice(prefix.length).trim().split(/ +/g); // removes the prefix, then the spaces, then splits into array
         const commandName = args.shift()?.toLowerCase();
@@ -80,7 +80,7 @@ client.on('message', async message => {
 
                 // Current channel client perms check
                 // VIEW and SEND can be omitted here as in order to see the message VIEW must be true and SEND is already checked for
-                let currentChannelPerms = message.channel.permissionsFor(message.channel.guild.member(client.user!)!);
+                let currentChannelPerms = message.channel.permissionsFor(message.channel.guild.me!);
                 if (!currentChannelPerms?.has('MANAGE_WEBHOOKS')) {
                     return message.reply(embedMessage(
                         'Your portal opens, but instantly fizzes out — it seems the hold of magic in your current location are yet too weak ' +
@@ -89,7 +89,7 @@ client.on('message', async message => {
                 }
 
                 // Target channel client perms check
-                let targetChannelPerms = guildChannel.permissionsFor(guildChannel.guild.member(client.user!)!);
+                let targetChannelPerms = guildChannel.permissionsFor(guildChannel.guild.me!);
                 if (!targetChannelPerms?.has('VIEW_CHANNEL')
                     || !targetChannelPerms?.has('SEND_MESSAGES')
                     || !targetChannelPerms?.has('MANAGE_WEBHOOKS')) {
@@ -172,15 +172,15 @@ client.on('message', async message => {
                 // Filter out webhook messages to prevent infinite loop
                 const messageFilter = (m: Message) => m.webhookID === null && m.author.id !== client.user?.id;
                 // Time the portal remains open, in ms
-                const portalOpenLength = 60000;
+                const portalOpenLength = 90000;
 
                 const fromCollector = message.channel.createMessageCollector(messageFilter, {time: portalOpenLength});
                 const toCollector = guildChannel.createMessageCollector(messageFilter, {time: portalOpenLength});
 
                 fromCollector.on('collect',
-                    async (m: Message) => handlePortalMessage(m, destWebhook, guildChannel, prefix));
+                    async (m: Message) => handlePortalMessage(m, destWebhook, guildChannel));
                 toCollector.on('collect',
-                    async (m: Message) => handlePortalMessage(m, fromWebhook, message.channel as TextChannel, prefix));
+                    async (m: Message) => handlePortalMessage(m, fromWebhook, message.channel as TextChannel));
 
                 // When the portal closes
                 fromCollector.on('end', async () => {
@@ -211,7 +211,7 @@ async function fetchPortalWebhook(channel: TextChannel) {
 }
 
 // Function to handle an incoming portal message
-async function handlePortalMessage(m: Message, dest: Webhook, linkedTo: TextChannel, prefix: string) {
+async function handlePortalMessage(m: Message, dest: Webhook, linkedTo: TextChannel) {
     if (m.content === `${prefix} info`)
         await m.reply(embedMessage(`Connected to **${linkedTo.name}** in **${linkedTo.guild.name}**`));
     else await dest.send(
