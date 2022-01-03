@@ -9,7 +9,7 @@ power of magic!
 ![image](https://user-images.githubusercontent.com/60120929/147906789-faaf2d97-a0f5-4a8c-9008-a23ba9cfc877.png)
 
 (disclaimer: under the hood, PortalBot uses webhooks instead of magic to link channels. Read about everything PortalBot
-imitates in a message [here](https://github.com/ky28059/PortalBot/blob/main/bot.ts#L248-L257).)
+imitates in a message [here](https://github.com/ky28059/PortalBot/blob/main/bot.ts#L288-L297).)
 
 ### Why?
 Because it's fun! Also, it encourages what I refer to as "cross pollination" between friend groups on different servers
