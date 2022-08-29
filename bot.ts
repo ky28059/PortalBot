@@ -1,4 +1,4 @@
-import {Client, CommandInteraction, Message} from 'discord.js';
+import {ActivityType, Client, CommandInteraction, Message} from 'discord.js';
 import {conductPortal} from './util/portals';
 import {replyEmbed} from './util/messages';
 import {token} from './auth';
@@ -8,16 +8,17 @@ export const prefix = 'portal';
 
 const client = new Client({
     intents: [
-        "GUILDS",
-        "GUILD_MESSAGES",
-        "GUILD_PRESENCES",
-        "GUILD_MEMBERS",
-        "GUILD_MESSAGE_REACTIONS",
-        "GUILD_INTEGRATIONS",
-        "GUILD_EMOJIS_AND_STICKERS",
-        "GUILD_WEBHOOKS"
+        "Guilds",
+        "GuildMessages",
+        "GuildPresences",
+        "GuildMembers",
+        "GuildMessageReactions",
+        "GuildIntegrations",
+        "GuildEmojisAndStickers",
+        "GuildWebhooks",
+        "MessageContent"
     ],
-    presence: {activities: [{type: 'WATCHING', name: 'everything'}]},
+    presence: {activities: [{type: ActivityType.Watching, name: 'everything'}]},
     allowedMentions: {repliedUser: false}
 });
 
@@ -27,7 +28,7 @@ client.once('ready', async () => {
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
-    if (message.channel.type === 'DM') return;
+    if (message.channel.isDMBased()) return;
 
     if (message.content.substring(0, prefix.length) === prefix) {
         const args = message.content.slice(prefix.length).trim().split(/ +/g); // removes the prefix, then the spaces, then splits into array
@@ -49,7 +50,7 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isCommand()) return;
+    if (!interaction.isChatInputCommand()) return;
 
     switch (interaction.commandName) {
         // /open [channel]

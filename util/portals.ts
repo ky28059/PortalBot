@@ -1,5 +1,5 @@
 import {
-    Client, CommandInteraction, Message, MessageActionRow, MessageButton, MessageComponentInteraction,
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, CommandInteraction, Message, MessageComponentInteraction,
     TextChannel, Webhook
 } from 'discord.js';
 import {author, embed, replyEmbed} from './messages';
@@ -48,8 +48,8 @@ export async function conductPortal(client: Client, message: Message | CommandIn
     const memberPerms = member && channel.permissionsFor(member);
     const everyonePerms = channel.permissionsFor('everyone');
     if (
-        (memberPerms && !(memberPerms.has('VIEW_CHANNEL') && memberPerms.has('SEND_MESSAGES')))
-        || (!member && (!everyonePerms?.has('VIEW_CHANNEL') || !everyonePerms?.has('SEND_MESSAGES')))
+        (memberPerms && !(memberPerms.has('ViewChannel') && memberPerms.has('SendMessages')))
+        || (!member && (!everyonePerms?.has('ViewChannel') || !everyonePerms?.has('SendMessages')))
     ) {
         return replyEmbed(
             message,
@@ -60,19 +60,19 @@ export async function conductPortal(client: Client, message: Message | CommandIn
 
     // Current channel client perms check
     // VIEW and SEND can be omitted here as in order to see the message VIEW must be true and SEND is already checked for
-    const currentChannelPerms = message.channel.permissionsFor(message.channel.guild.me!);
-    if (!currentChannelPerms?.has('MANAGE_WEBHOOKS')) return replyEmbed(
+    const currentChannelPerms = message.channel.permissionsFor(message.channel.guild.members.me!);
+    if (!currentChannelPerms?.has('ManageWebhooks')) return replyEmbed(
         message,
         'Your portal opens, but instantly fizzes out — it seems the hold of magic in your current location are yet too weak ' +
         'for portalling. __'
     );
 
     // Target channel client perms check
-    const targetChannelPerms = channel.permissionsFor(channel.guild.me!);
+    const targetChannelPerms = channel.permissionsFor(channel.guild.members.me!);
     if (
-        !targetChannelPerms.has('VIEW_CHANNEL')
-        || !targetChannelPerms.has('SEND_MESSAGES')
-        || !targetChannelPerms.has('MANAGE_WEBHOOKS')
+        !targetChannelPerms.has('ViewChannel')
+        || !targetChannelPerms.has('SendMessages')
+        || !targetChannelPerms.has('ManageWebhooks')
     ) {
         return replyEmbed(
             message,
@@ -93,17 +93,16 @@ export async function conductPortal(client: Client, message: Message | CommandIn
     // Open portal!
 
     // Buttons!
-    const row = new MessageActionRow()
-        .addComponents(
-            new MessageButton()
-                .setCustomId('accept')
-                .setLabel('Yes!')
-                .setStyle('SUCCESS'),
-            new MessageButton()
-                .setCustomId('decline')
-                .setLabel('No!')
-                .setStyle('DANGER'),
-        );
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+            .setCustomId('accept')
+            .setLabel('Yes!')
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('decline')
+            .setLabel('No!')
+            .setStyle(ButtonStyle.Danger),
+    );
 
     const fromMessage = await replyEmbed(
         message,
@@ -207,7 +206,7 @@ export async function conductPortal(client: Client, message: Message | CommandIn
 // Finds or creates a PortalBot webhook in a channel
 async function fetchPortalWebhook(channel: TextChannel) {
     return (await channel.fetchWebhooks()).find(value => value.name === 'Portal')
-        ?? await channel.createWebhook('Portal');
+        ?? await channel.createWebhook({name: 'Portal', avatar: './profile.jpg', reason: 'Facilitating portal communication!'});
 }
 
 // Handles an incoming portal message
@@ -219,8 +218,7 @@ async function handlePortalMessage(m: Message, dest: Webhook, linkedTo: TextChan
     else await dest.send({
         content: m.content ? m.content : null,
         username: m.author.username,
-        avatarURL: m.author.displayAvatarURL({format: 'png', /* dynamic: true */}),
-        stickers: [...m.stickers.values()], // Seems like stickers aren't fully functional yet, as PortalBot does not send them properly
+        avatarURL: m.author.displayAvatarURL(),
         files: [...m.attachments.values()],
         embeds: m.embeds,
         allowedMentions: {parse: []}

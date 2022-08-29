@@ -1,16 +1,18 @@
-import {CommandInteraction, Message, MessageEmbed, MessageOptions} from 'discord.js';
+import {CommandInteraction, Message, EmbedBuilder, MessageOptions} from 'discord.js';
 
 
 // Replies to a message or interaction.
-export async function reply(target: Message | CommandInteraction, content: string | MessageOptions) {
+// TODO: `options.flags` are incompatible between messages and command interactions;
+// is there any fix beyond disallowing this property?
+export async function reply(target: Message | CommandInteraction, content: string | Omit<MessageOptions, 'flags'>) {
     return target instanceof CommandInteraction
         ? target.reply({...(typeof content === 'string' ? {content} : content), fetchReply: true})
-        : target.reply(content);
+        : target.channel.send(content);
 }
 
 // Creates an embed to display a message.
 export function embed(desc: string) {
-    return new MessageEmbed()
+    return new EmbedBuilder()
         .setColor(0xf6b40c)
         .setDescription(desc);
 }
